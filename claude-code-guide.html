@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code Field Guide (solo dev, lean)</title>
+<style>
+:root{--bg:#fff;--fg:#1d1d1f;--mut:#65656d;--bd:#e2e2e8;--ac:#c2410c;--card:#f6f6f9;--code:#eeeef3}
+:root[data-theme=dark]{--bg:#15151a;--fg:#e8e8ec;--mut:#9a9aa5;--bd:#2c2c35;--ac:#fb923c;--card:#1d1d24;--code:#25252e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+a{color:var(--ac)}code,pre{font-family:ui-monospace,Menlo,monospace;font-size:13px}
+code{background:var(--code);padding:1px 5px;border-radius:4px}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--bd);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header h1{font-size:17px;margin:0;flex:1 1 220px}
+input,button{font:inherit;padding:6px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--fg)}
+button{cursor:pointer}input{flex:1 1 200px;max-width:340px}
+.wrap{display:flex;max-width:1150px;margin:0 auto}
+nav{width:210px;flex:none;position:sticky;top:58px;align-self:flex-start;max-height:calc(100vh - 70px);overflow:auto;padding:14px 8px 14px 16px;font-size:13px}
+nav a{display:block;padding:4px 0;text-decoration:none;color:var(--mut)}nav a:hover{color:var(--ac)}
+main{flex:1;min-width:0;padding:14px 16px 60px}
+details.s{border:1px solid var(--bd);border-radius:10px;margin:0 0 10px;background:var(--bg)}
+details.s>summary{cursor:pointer;padding:11px 14px;font-weight:600;font-size:16px;display:flex;gap:8px;justify-content:space-between}
+.v{font-weight:400;font-size:11px;color:var(--mut);white-space:nowrap}
+.b{padding:0 14px 12px}.b h3{font-size:14px;margin:16px 0 4px}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13.5px}
+td,th{border:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card)}
+pre{background:var(--code);padding:10px 12px;border-radius:8px;overflow-x:auto;white-space:pre-wrap;position:relative;margin:8px 0}
+pre button{position:absolute;top:6px;right:6px;font-size:11px;padding:2px 8px}
+.tag{font-size:11px;border:1px solid var(--bd);border-radius:99px;padding:0 7px;color:var(--mut)}
+.note{background:var(--card);border-left:3px solid var(--ac);padding:8px 12px;border-radius:6px;margin:10px 0}
+@media(max-width:800px){nav{display:none}}
+</style>
+</head>
+<body>
+<header>
+<h1>Claude Code Field Guide <span class="v">v1.0 · reviewed 2026-10-30 · macOS · Pro plan</span></h1>
+<input id="q" type="search" placeholder="Search guide…">
+<button id="ex">Expand all</button><button id="th">Theme</button>
+</header>
+<div class="wrap"><nav id="toc"></nav><main>
+
+<details class="s" id="rules" open data-v="2026-10-30"><summary>1. The 10 rules <span class="v">verified 2026-10-30</span></summary><div class="b">
+<ol>
+<li><b>Context is the scarce resource.</b> Quality drops as it fills. <code>/clear</code> between unrelated tasks.</li>
+<li><b>Give Claude a check it can run</b> (tests, build, linter, screenshot). That is what lets you stop babysitting.</li>
+<li><b>Explore → plan → code → commit.</b> Skip the plan if you can describe the diff in one sentence.</li>
+<li><b>Be specific:</b> name files with <code>@</code>, describe the symptom, state constraints, point to an existing pattern to copy.</li>
+<li><b>Keep CLAUDE.md short.</b> For each line ask: “would removing this cause mistakes?” If not, cut it.</li>
+<li><b>Research in subagents, implement in the main session.</b></li>
+<li><b>Two failed corrections → <code>/clear</code></b> and re-prompt with what you learned.</li>
+<li><b>Git is the safety net.</b> Commit before big tasks. Checkpoints do not track Bash changes.</li>
+<li><b>You gate the irreversible:</b> schema changes, deletes, new dependencies, auth, payments, deploys, secrets.</li>
+<li><b>Fewer, vetted extensions.</b> Third-party plugins and MCP servers run with your permissions.</li>
+</ol></div></details>
+
+<details class="s" id="setup" data-v="2026-10-30"><summary>2. macOS setup <span class="v">verified 2026-10-30</span></summary><div class="b">
+<pre>curl -fsSL https://claude.ai/install.sh | bash     # native installer (or: brew install --cask claude-code)
+cd your-project && claude                           # then /login with your Pro account</pre>
+<p class="note">Install commands change often: confirm on the official setup page (see Sources). If an <code>ANTHROPIC_API_KEY</code> env var is set you may be billed per token instead of using your Pro plan. Check with <code>/usage</code>.</p>
+<h3>First 10 minutes in any project</h3>
+<ul>
+<li><code>/init</code> generates a starter CLAUDE.md. Prune it. <code>/context</code> confirms what loaded. <code>/doctor</code> suggests cuts.</li>
+<li>Set up a custom <b>status line</b> that shows context usage (docs: “statusline”).</li>
+<li><code>/permissions</code> to allowlist safe commands (tests, lint, <code>git commit</code>); <code>/sandbox</code> for OS-level isolation.</li>
+<li>Install <code>gh</code> (GitHub CLI): the most context-efficient way for Claude to handle issues and PRs.</li>
+</ul>
+<h3>Desktop app vs CLI</h3>
+<p>CLI: fastest, scriptable (<code>claude -p</code>), full feature set. Desktop: visual multi-session management, optional worktree per session. Keep your editor open in another window to review diffs; sessions are shared per project folder.</p>
+<h3>Keys worth memorizing</h3>
+<div class="w"><table>
+<tr><td><code>Shift+Tab</code></td><td>cycle permission modes (plan mode)</td><td><code>Esc</code></td><td>stop, keep context</td></tr>
+<tr><td><code>Esc Esc</code> / <code>/rewind</code></td><td>restore conversation/code to a checkpoint</td><td><code>Ctrl+G</code></td><td>edit the plan in your editor</td></tr>
+<tr><td><code>@file</code></td><td>reference a file</td><td><code>/btw</code></td><td>side question, not added to context</td></tr>
+<tr><td><code>claude -c</code> / <code>--resume</code></td><td>continue / pick a session</td><td><code>/rename</code></td><td>name sessions like branches</td></tr>
+</table></div></div></details>
+
+<details class="s" id="loop" data-v="2026-10-30"><summary>3. The core workflow <span class="v">verified 2026-10-30</span></summary><div class="b">
+<ol>
+<li><b>Explore</b> in plan mode (<code>Shift+Tab</code> or <code>claude --permission-mode plan</code>): read code, no edits.</li>
+<li><b>Plan:</b> ask for a plan, edit it with <code>Ctrl+G</code>.</li>
+<li><b>Implement</b> against the plan, running tests as it goes.</li>
+<li><b>Verify</b> with evidence (test output, screenshot), not “looks done”. Run <code>/verify</code> against the running app.</li>
+<li><b>Commit</b> and open the PR. Review the diff yourself.</li>
+</ol>
+<p>Larger features: have Claude <b>interview you</b> and write SPEC.md, then <b>execute in a fresh session</b>. Unattended runs: set the check as a <code>/goal</code> condition or a Stop hook so it can’t finish until the check passes.</p>
+<pre>I want to build [description]. Interview me in detail using the AskUserQuestion tool. Cover technical implementation, UI/UX, edge cases, concerns and tradeoffs; skip obvious questions. Keep going until everything is covered, then write a complete spec to SPEC.md. Name the files and interfaces involved, what is out of scope, and an end-to-end verification step.</pre>
+</div></details>
+
+<details class="s" id="tokens" data-v="2026-10-30"><summary>4. Lean mode: tokens &amp; Pro limits <span class="v">verified 2026-10-30</span></summary><div class="b">
+<p>On Pro you don’t pay per token; you hit a usage limit. Saving tokens = not running out mid-week. <code>/usage</code> shows plan bars and a breakdown by skills, subagents, plugins and MCP servers. <code>/usage-credits</code> lets you go past the limit if you choose.</p>
+<div class="w"><table>
+<tr><th>Lever</th><th>Do this</th><th>Source</th></tr>
+<tr><td>Reset context</td><td><code>/clear</code> between tasks; <code>/compact focus on X</code> mid-task; add “when compacting, keep modified files and test commands” to CLAUDE.md</td><td>Official</td></tr>
+<tr><td>Side questions</td><td><code>/btw</code> keeps answers out of history</td><td>Official</td></tr>
+<tr><td>Research</td><td>“Use subagents to investigate…” (separate context, summary returned)</td><td>Official</td></tr>
+<tr><td>Scope</td><td>Name files/dirs; never “investigate the repo”</td><td>Official</td></tr>
+<tr><td>CLAUDE.md</td><td>Short; rare workflows go into skills (loaded on demand)</td><td>Official</td></tr>
+<tr><td>Model &amp; effort</td><td>Pick at session start (<code>/model</code>, <code>/effort</code>); switching mid-session loses cache. Rule of thumb: cheap model for mechanical edits, default for coding, top model for architecture/hard bugs; lower effort for simple tasks</td><td>Community</td></tr>
+<tr><td>Extensions</td><td>Don’t load every skill/MCP. Remove unused ones; use <code>/usage</code> to find hogs</td><td>Community</td></tr>
+<tr><td>CLI over MCP</td><td>Prefer <code>gh</code>, <code>aws</code>, <code>gcloud</code> to MCP where one exists</td><td>Official</td></tr>
+<tr><td>Parallelism</td><td>Agent teams/many sessions multiply usage; use deliberately</td><td>Community</td></tr>
+<tr><td>Track</td><td><code>npx ccusage</code> for local usage stats</td><td>Community</td></tr>
+</table></div></div></details>
+
+<details class="s" id="control" data-v="2026-10-30"><summary>5. Staying in the loop (permissions &amp; gates) <span class="v">verified 2026-10-30</span></summary><div class="b">
+<div class="w"><table>
+<tr><th>Mode</th><th>Behavior</th><th>Use for</th></tr>
+<tr><td>Manual</td><td>Asks before edits/commands/MCP</td><td>Unfamiliar or risky code</td></tr>
+<tr><td>Plan</td><td>Read-only analysis</td><td>Design, estimates, unknown codebases</td></tr>
+<tr><td>Auto</td><td>A classifier reviews actions and blocks risky ones; default start mode on recent versions (v2.1.283+)</td><td>Routine work</td></tr>
+<tr><td>dontAsk</td><td>Only pre-approved tools, denies the rest</td><td>Scripts / <code>claude -p</code></td></tr>
+</table></div>
+<p><b>Recommended for you:</b> plan mode to design → allowlist + auto for routine edits → a <b>hard ask-first list</b> for anything irreversible. Deterministic rules (deny rules, hooks) beat CLAUDE.md advice. Avoid <code>--dangerously-skip-permissions</code> outside a sandbox/container.</p>
+<pre>## Ask me first (never do silently)
+- Schema/migration changes, data deletion, destructive git (force push, reset --hard)
+- Adding/upgrading dependencies, changing build/CI config
+- Auth, payments, permissions, secrets/env handling
+- Deploys, anything touching production or paid external services
+- Public API/contract changes
+For these: explain the change and risk in 3 lines, then wait for my OK.</pre>
+<p>Hooks: ask Claude “write a hook that blocks writes to the migrations folder” or “runs eslint after every file edit”, then review with <code>/hooks</code>.</p>
+</div></details>
+
+<details class="s" id="features" data-v="2026-10-30"><summary>6. Which feature for what <span class="v">verified 2026-10-30</span></summary><div class="b"><div class="w"><table>
+<tr><th>You want…</th><th>Use</th><th>Where</th></tr>
+<tr><td>Facts Claude must always know</td><td>CLAUDE.md (imports with <code>@path</code>)</td><td><code>./CLAUDE.md</code></td></tr>
+<tr><td>Know-how needed sometimes / repeatable workflow</td><td>Skill (<code>/skill-name</code> or auto)</td><td><code>.claude/skills/x/SKILL.md</code></td></tr>
+<tr><td>Isolated research or review, clean main context</td><td>Subagent</td><td><code>.claude/agents/x.md</code></td></tr>
+<tr><td>Must happen every time, zero exceptions</td><td>Hook</td><td><code>.claude/settings.json</code></td></tr>
+<tr><td>External systems (DB, Figma, Notion, monitoring)</td><td>MCP server</td><td><code>claude mcp add</code></td></tr>
+<tr><td>Bundle of the above</td><td>Plugin</td><td><code>/plugin</code></td></tr>
+<tr><td>Big mechanical change across many files</td><td><code>/batch</code> (5–30 subagents in worktrees) or a <code>claude -p</code> loop</td><td>CLI</td></tr>
+<tr><td>Parallel work without collisions</td><td>Worktrees; Desktop sessions; <code>claude agents</code> (preview)</td><td>CLI/Desktop</td></tr>
+<tr><td>Fresh-eyes review</td><td><code>/code-review</code> or reviewer subagent</td><td>built-in</td></tr>
+<tr><td>CI / scripts</td><td><code>claude -p "..." --output-format json</code></td><td>CLI</td></tr>
+</table></div>
+<p class="note">Typed languages: install a code-intelligence plugin for precise symbol navigation. Remote MCP example: <code>claude mcp add --transport http notion https://mcp.notion.com/mcp</code></p>
+</div></details>
+
+<details class="s" id="jobs" data-v="2026-10-30"><summary>7. By job: how to run each <span class="v">verified 2026-10-30</span></summary><div class="b"><div class="w"><table>
+<tr><th>Job</th><th>Approach</th><th>Verify with</th></tr>
+<tr><td>Choosing a stack</td><td>Don’t pre-commit. Have Claude propose 2–3 options with trade-offs for <i>your</i> constraints (solo, low ops, cost), then you decide</td><td>Your call, written to DECISIONS.md</td></tr>
+<tr><td>Web frontend</td><td>Paste a design/screenshot; reference an existing component; use frontend-design plugin; Context7 for current framework docs</td><td>Browser screenshot compare (Chrome integration / Playwright)</td></tr>
+<tr><td>Backend / API</td><td>Spec first (endpoints, errors, auth), then implement with tests; follow existing patterns</td><td>Integration tests, <code>curl</code> smoke test</td></tr>
+<tr><td>Database</td><td>Claude drafts schema and migrations; <b>you approve</b> before applying; use a dev/branch DB, never prod credentials</td><td>Migration up/down on a scratch DB, query plan</td></tr>
+<tr><td>Mobile (RN/Expo, Flutter, Swift, Kotlin)</td><td>Give it the exact build/test command; start small screens; run on simulator</td><td>Build exit code, simulator screenshot, unit tests</td></tr>
+<tr><td>DevOps / deploy</td><td>Claude writes Dockerfile/CI; use CLIs (<code>gh</code>, cloud CLI); <b>deploys are ask-first</b></td><td>Build locally, dry-run, CI green</td></tr>
+<tr><td>Testing</td><td>“Test behavior, avoid mocks where possible”; write failing test first for bugs</td><td>Test suite output</td></tr>
+<tr><td>Debugging</td><td>Give symptom + location + “fixed” definition; fix root cause, not the error message</td><td>Reproducing test now passes</td></tr>
+<tr><td>Refactor / legacy</td><td>Characterization tests first, small steps, one commit each; <code>/batch</code> for mechanical sweeps</td><td>Same tests green before/after</td></tr>
+<tr><td>Security</td><td>Reviewer subagent for injection/auth/secrets; keep secrets out of context</td><td>Linter/SAST, dependency audit</td></tr>
+<tr><td>Research</td><td>Subagents for code questions; give URLs for docs; use Claude chat/Desktop web research for broad comparisons, paste only the conclusion into SPEC.md</td><td>Sources cited, checked</td></tr>
+</table></div></div></details>
+
+<details class="s" id="prompts" data-v="2026-10-30"><summary>8. Prompt library (click to copy) <span class="v">verified 2026-10-30</span></summary><div class="b">
+<h3>Pick a stack</h3>
+<pre>I’m a solo developer building [app]. Constraints: [budget, hosting, timeline, skills]. Propose 2–3 tech stacks with trade-offs (build speed, ops burden, cost, hiring/maintenance, lock-in). Recommend one, then stop and wait for my decision. Don’t write code yet.</pre>
+<h3>Scaffold</h3>
+<pre>Read SPEC.md. Scaffold the project with the agreed stack: folder structure, lint/format/typecheck, a test runner, one passing smoke test, a README with run/test commands, and a first CLAUDE.md under 60 lines. Run everything and show me the output.</pre>
+<h3>Feature from spec (fresh session)</h3>
+<pre>Implement [feature] per SPEC.md. Follow the patterns in @[example file]. Write tests first for the main paths and edge cases. Run lint, typecheck and tests until green. Show evidence. Don’t touch anything outside this scope; flag anything that needs my approval.</pre>
+<h3>Debug</h3>
+<pre>Symptom: [what happens]. Expected: [what should]. Likely area: [path]. Write a failing test that reproduces it, find the root cause (don’t suppress the error), fix it, and show the test passing.</pre>
+<h3>Database change</h3>
+<pre>Propose the schema change for [goal] and the migration (up and down). Explain data-loss risk and locking impact. Do NOT apply anything. After I approve, run it on the dev database only and show the result.</pre>
+<h3>Safe refactor</h3>
+<pre>Refactor [module] to [goal]. First add characterization tests for current behavior. Then change in small steps, running tests after each, one commit per step. Stop if a test changes meaning.</pre>
+<h3>Review (fresh eyes)</h3>
+<pre>Use a subagent to review the current diff against SPEC.md. Report only gaps affecting correctness, security or stated requirements. Skip style opinions.</pre>
+<h3>Security pass</h3>
+<pre>Use a subagent to audit [path] for injection, authn/authz flaws, secret leakage, and insecure data handling. Give file:line references, severity, and a suggested fix. Don’t change code.</pre>
+<h3>Research a choice</h3>
+<pre>Use subagents to research [question]. Check current official docs (use Context7 if available). Return: options, trade-offs for my case, a recommendation, and sources. Max 25 lines.</pre>
+<h3>Handoff before /clear</h3>
+<pre>Write HANDOFF.md: goal, decisions made and why, files changed, what’s done, what’s next, commands to run tests. Keep it under 40 lines.</pre>
+<h3>Prune CLAUDE.md</h3>
+<pre>Review CLAUDE.md. Remove anything you can infer from the code or already do correctly; move rarely-needed workflows into skills; keep it under 100 lines. Show the diff.</pre>
+</div></details>
+
+<details class="s" id="templates" data-v="2026-10-30"><summary>9. Copy-paste templates <span class="v">verified 2026-10-30</span></summary><div class="b">
+<h3>CLAUDE.md starter</h3>
+<pre># [Project]: one-line purpose
+## Commands
+- dev: [cmd] · test (single): [cmd] · lint/typecheck: [cmd] · build: [cmd]
+## Conventions (only what differs from defaults)
+- [e.g. ES modules, named exports; API errors use {code,message}]
+## Workflow
+- Typecheck + run relevant tests after code changes. Prefer single tests over the full suite.
+- Branches: feat/x, fix/x. Commit messages: conventional.
+- When compacting, keep modified files and test commands.
+## Ask me first
+- (paste the Ask-first block from section 5)</pre>
+<h3>Skill (.claude/skills/fix-issue/SKILL.md)</h3>
+<pre>---
+name: fix-issue
+description: Fix a GitHub issue
+disable-model-invocation: true
+---
+Fix GitHub issue $ARGUMENTS: read it with `gh issue view`, find the code, write a failing test, fix, run lint/typecheck/tests, commit, open a PR.</pre>
+<h3>Subagent (.claude/agents/security-reviewer.md)</h3>
+<pre>---
+name: security-reviewer
+description: Reviews code for security vulnerabilities
+tools: Read, Grep, Glob, Bash
+---
+You are a senior security engineer. Review for injection, authn/authz flaws, leaked secrets, insecure data handling. Give file:line and a suggested fix.</pre>
+</div></details>
+
+<details class="s" id="eco" data-v="2026-10-30"><summary>10. Third-party &amp; community tools <span class="v">verified 2026-10-30</span></summary><div class="b">
+<p class="note"><b>Vet before install:</b> plugins and MCP servers run with your permissions and can read your code. Prefer the official marketplace, read the source, pin versions, remove what you don’t use. Install lines below are community-reported; confirm in <code>/plugin</code>.</p>
+<div class="w"><table>
+<tr><th>Tool</th><th>Why</th><th>Install</th></tr>
+<tr><td>Superpowers (obra)</td><td>Enforces brainstorm → plan → TDD → review discipline</td><td><code>/plugin install superpowers@claude-plugins-official</code></td></tr>
+<tr><td>Context7 (Upstash)</td><td>Current, version-specific library docs; fewer outdated-API bugs. Free API key</td><td><code>/plugin install context7@claude-plugins-official</code></td></tr>
+<tr><td>Playwright</td><td>Claude drives a browser to test your UI. CLI+skill variant reported more token-efficient than MCP</td><td><code>/plugin install playwright@claude-plugins-official</code></td></tr>
+<tr><td>frontend-design</td><td>Better UI output, less generic styling</td><td><code>/plugin install frontend-design@claude-plugins-official</code></td></tr>
+<tr><td>ccusage</td><td>Local usage tracking</td><td><code>npx ccusage</code></td></tr>
+<tr><td>Workflow frameworks (Spec Kit, GSD, etc.)</td><td>Heavier spec-driven pipelines. Try one at a time; skip if they cost more than they save</td><td>per repo</td></tr>
+</table></div>
+<p>Discover more: awesome-claude-skills and claude-code-best-practice repos (Sources). Rule: add a tool only to fix a problem you actually have.</p>
+</div></details>
+
+<details class="s" id="sources" data-v="2026-10-30"><summary>11. Sources <span class="v">verified 2026-10-30</span></summary><div class="b"><ul>
+<li><b>Official:</b> <a href="https://code.claude.com/docs/en/best-practices">Best practices</a> · <a href="https://code.claude.com/docs/en/costs">Costs</a> · <a href="https://code.claude.com/docs/llms.txt">Docs index (llms.txt)</a> · <a href="https://github.com/anthropics/claude-code">anthropics/claude-code</a> (releases) · <a href="https://claude.com/pricing">Pricing</a></li>
+<li><b>Community:</b> <a href="https://github.com/shanraisshan/claude-code-best-practice">shanraisshan/claude-code-best-practice</a> · <a href="https://github.com/travisvn/awesome-claude-skills">awesome-claude-skills</a> · <a href="https://geotoolbox.ai/blog/reduce-claude-code-token-costs">Token cost explainer</a> · <a href="https://www.kdnuggets.com/7-practical-ways-to-reduce-claude-code-token-usage">KDnuggets: 7 ways to cut tokens</a></li>
+</ul><p>“Official” rows were read from Anthropic’s docs on the review date; “Community” rows are practitioner advice.</p></div></details>
+
+<details class="s" id="update" open data-v="2026-10-30"><summary>12. Keep this guide current <span class="v">verified 2026-10-30</span></summary><div class="b">
+<p><b>Routine (monthly, or when a release catches your eye):</b> open Claude chat with web search on → attach this file → paste the prompt below. It returns minor changes as a short list. Only if something major turns up does it give you an edit prompt to paste into Claude Code (run from the repo folder holding <code>claude-code-guide.html</code>).</p>
+<pre>You are auditing my Claude Code guide. The attached HTML file is the guide. Web search is on.
+1. Read the guide: note each section’s "verified" date and the Update Log.
+2. Search for what changed since the oldest verified date. Official first: code.claude.com/docs (best-practices, costs, features overview, llms.txt index), Claude Code releases/changelog (github.com/anthropics/claude-code), claude.com/pricing, Anthropic news. Then reputable community sources (the guide’s Sources section plus anything new with real traction). Also check that every command, flag, install line and plugin name in the guide still exists.
+3. Classify each finding.
+MAJOR = materially affects my work, time or money: new/removed tools, models or features; changed or deprecated commands, flags, defaults; a new official best practice that beats the guide; pricing, plan-limit or token-cost changes; a security problem with something the guide recommends.
+MINOR = everything else.
+4. Output exactly:
+a) Verdict: "NO MAJOR CHANGES" or "MAJOR CHANGES FOUND".
+b) Minor changes: one line each with a source URL. Report only; propose no edits.
+c) ONLY if major changes exist: for each, what changed, source URL, guide section affected. Then ONE ready-to-paste prompt for Claude Code, in a code block, that edits ./claude-code-guide.html in place.
+d) If there are no major changes, stop after (b). Do not write an edit prompt and do not rewrite the HTML.
+Rules: separate verified fact from community opinion; mark anything unconfirmed "unverified"; never invent; keep it short.
+The Claude Code edit prompt you write must: edit only the affected sections; keep the file self-contained with its structure, classes and JS intact; update each touched section’s data-v attribute and its visible "verified" date; add a line to the Update Log (date + what changed); update Sources if needed; then show git diff --stat and stop for my review. No commits.</pre>
+<h3>Why this works</h3>
+<p>Each section carries a <code>data-v</code> date and a visible “verified” stamp, so the auditor knows what’s stale. Commit the file to git; the diff after each update is your changelog.</p>
+</div></details>
+
+<details class="s" id="log" data-v="2026-10-30"><summary>13. Update Log <span class="v">verified 2026-10-30</span></summary><div class="b"><ul id="lg">
+<li><b>2026-10-30</b> v1.0: initial guide (setup, workflow, lean tokens, gates, features, jobs, prompts, templates, ecosystem, update protocol).</li>
+</ul></div></details>
+
+</main></div>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+$('#toc').innerHTML=$$('details.s').map(d=>`<a href="#${d.id}">${d.querySelector('summary').childNodes[0].textContent.trim()}</a>`).join('');
+$$('#toc a').forEach(a=>a.onclick=()=>{const d=$(a.hash);d.open=true});
+$$('pre').forEach(p=>{const b=document.createElement('button');b.textContent='Copy';b.onclick=()=>{const t=p.cloneNode(true);t.querySelector('button').remove();navigator.clipboard.writeText(t.textContent.trim()).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1200)})};p.prepend(b)});
+$('#q').oninput=e=>{const q=e.target.value.toLowerCase().trim();$$('details.s').forEach(d=>{const m=!q||d.textContent.toLowerCase().includes(q);d.style.display=m?'':'none';if(q&&m)d.open=true})};
+let all=false;$('#ex').onclick=()=>{all=!all;$$('details.s').forEach(d=>d.open=all);$('#ex').textContent=all?'Collapse all':'Expand all'};
+const R=document.documentElement;let t;try{t=localStorage.getItem('cc-theme')}catch(e){}
+R.dataset.theme=t||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+$('#th').onclick=()=>{R.dataset.theme=R.dataset.theme==='dark'?'light':'dark';try{localStorage.setItem('cc-theme',R.dataset.theme)}catch(e){}};
+if(location.hash){const d=$(location.hash);if(d&&d.tagName==='DETAILS')d.open=true}
+</script>
+</body>
+</html>
